@@ -19,7 +19,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .bar{display:flex;align-items:center;gap:12px;padding:0 2rem;height:56px;background:var(--bg2);border-bottom:1px solid var(--b1);position:sticky;top:0;z-index:10}
 .lm{width:32px;height:32px;background:var(--coral);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#fff;flex-shrink:0}
 .ln{font-weight:800;font-size:16px;letter-spacing:-.3px}
-.ln span{color:var(--coral)}
+.ln span{color:var(--muted)}
 .bar-sub{font-size:13px;color:var(--muted)}
 .bar-r{margin-left:auto;font-size:12px;color:var(--hint)}
 .page{max-width:820px;margin:0 auto;padding:2.5rem 1.5rem 5rem}
@@ -104,7 +104,7 @@ select option{background:var(--card)}
   .card,.meal,.mc,.opt{background:#f8f8f8!important;border:1px solid #ddd!important;break-inside:avoid}
   .ct,.ml,.f>label,.ol{color:#555!important}
   .mv,.mn,.mkcal,.opt li strong{color:#000!important}
-  .mv.c,.mkcal,.ln span{color:#c0392b!important}
+  .mv.c,.mkcal{color:#c0392b!important}
   .muted,.opt ul,.ms{color:#444!important}
   .mbar{background:#eee!important}
   .nota{background:#f5f5f5!important;color:#555!important}
@@ -121,9 +121,28 @@ select option{background:var(--card)}
   .page{padding:1.5rem 1rem 4rem}
   .tog label{padding:5px 10px;font-size:11px}
 }
+
+  #auth-overlay{position:fixed;inset:0;background:#111a14;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;padding:1.5rem}
+  .auth-logo{width:48px;height:48px;background:#f07b6b;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;color:#fff;margin-bottom:1rem}
+  .auth-brand{font-weight:800;font-size:22px;letter-spacing:-.3px;margin-bottom:.25rem;color:#eef2ee}
+  .auth-brand span{color:#eef2ee}
+  .auth-desc{font-size:13px;color:#7a9a82;margin-bottom:2rem;text-align:center;line-height:1.6}
+  #clerk-sign-in{width:100%;max-width:400px}
+  #app-wrap{display:none}
+  .user-bar{font-size:12px;color:#7a9a82;display:flex;align-items:center;gap:10px}
+  .sign-out-btn{font-size:12px;color:#f07b6b;background:none;border:1px solid rgba(240,123,107,.3);border-radius:999px;padding:3px 12px;cursor:pointer;font-family:inherit}
+  .sign-out-btn:hover{background:rgba(240,123,107,.1)}
 </style>
 </head>
 <body>
+
+  <div id="auth-overlay">
+    <div class="auth-logo">N</div>
+    <div class="auth-brand">n<span>durance</span>.pt</div>
+    <p class="auth-desc">Área reservada a atletas autorizados.<br>Introduz o teu email para aceder.</p>
+    <div id="clerk-sign-in"></div>
+  </div>
+  <div id="app-wrap">
 
 <div class="bar">
   <div class="lm">N</div>
@@ -131,6 +150,10 @@ select option{background:var(--card)}
   <span class="bar-sub" style="margin-left:4px">Coaching</span>
   <span class="bar-r">Planeador Nutricional Diário</span>
 </div>
+    <div class="user-bar"><span id="user-email"></span><button class="sign-out-btn" onclick="clerkSignOut()">Sair</button></div>
+  </div>
+    <div class="user-bar"><span id="user-email"></span><button class="sign-out-btn" onclick="clerkSignOut()">Sair</button></div>
+  </div>
 
 <div class="page">
   <h1>Plano Diário de Nutrição</h1>
@@ -656,5 +679,30 @@ document.getElementById('gbtn').addEventListener('click', function() {
   render({ gen, age, wt, ht, obj, tmb:tmbV, tK, neat, tdee, ifv:ifvC, zona, dur:durV, mac, meals, carbo, nextDay, trainDay });
 });
 </script>
+  <script>
+(function(){
+  var s=document.createElement('script');
+  s.src='https://natural-toucan-83.clerk.accounts.dev/npm/@clerk/clerk-js@latest/dist/clerk.browser.js';
+  s.setAttribute('data-clerk-publishable-key','pk_test_bmF0dXJhbC10b3VjYW4tODMuY2xlcmsuYWNjb3VudHMuZGV2JA');
+  s.onload=async function(){
+    await window.Clerk.load();
+    var ap={variables:{colorPrimary:'#f07b6b',colorBackground:'#1c2a1e',colorInputBackground:'#223025',colorText:'#eef2ee',colorTextSecondary:'#7a9a82',borderRadius:'10px',fontFamily:'Inter,system-ui,sans-serif'}};
+    function showApp(){
+      document.getElementById('auth-overlay').style.display='none';
+      document.getElementById('app-wrap').style.display='block';
+      var u=window.Clerk.user;
+      if(u){var el=document.getElementById('user-email');if(el)el.textContent=u.primaryEmailAddress?u.primaryEmailAddress.emailAddress:'';}
+    }
+    if(window.Clerk.user){showApp();}
+    else{
+      window.Clerk.mountSignIn(document.getElementById('clerk-sign-in'),{appearance:ap});
+      window.Clerk.addListener(function(e){if(e.user)showApp();});
+    }
+  };
+  document.head.appendChild(s);
+})();
+function clerkSignOut(){window.Clerk.signOut().then(function(){location.reload();});}
+</script>
+  </div><!-- /app-wrap -->
 </body>
 </html>
