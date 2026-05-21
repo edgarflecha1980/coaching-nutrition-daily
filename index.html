@@ -441,9 +441,10 @@ function scale(items, factor) {
 // ── INTRA TREINO ──────────────────────────────────────────────────────
 function calcIntra(ifv, dur, wt) {
   var zona = ifv < 0.75 ? 1 : ifv < 0.90 ? 2 : 3;
-  var pElet = 'Santa Madre Electrolytes, 226ERS Hydrazero, SiS Hydro (ou outros)';
-  var pHc   = 'Santa Madre Gel, 226ERS Super Gel, SiS Beta Fuel Gel (ou outros). Barras: Santa Madre Barritas, 226ERS Energy Bar (ou outros)';
-  var pMul  = 'Santa Madre Gel + Gomas Energéticas (ratio 1:0.8), 226ERS Sub9 Gel, Maurten Gel 160 (ou outros). Barras: Santa Madre Barritas, 226ERS Energy Cake (ou outros)';
+  var nota  = 'Opta sempre por produtos de qualidade: 226ERS, Santa Madre, Enervit, Amacx, entre outros.';
+  var pElet = 'Bebida isotónica ou pastilhas/pó de eletrólitos. ' + nota;
+  var pHc   = 'Géis energéticos de absorção rápida, barras energéticas de fácil digestão ou gomas energéticas. ' + nota;
+  var pMul  = 'Géis energéticos com fórmula glicose+frutose (ratio 1:0.8), gomas energéticas intercaladas com géis, ou bebida energética concentrada com múltiplos transportadores. ' + nota;
   var res   = { type:'intra' };
 
   if (!dur || dur < 45) {
@@ -467,10 +468,10 @@ function calcIntra(ifv, dur, wt) {
     res.agua = 750; res.sodio = 800;
     res.txt = 'Rácio glicose:frutose 1:0.8 — '+glu+'g glicose + '+fru+'g frutose por hora. Iniciar aos 15–20 min e manter cadência regular.';
     res.prod = pMul; res.kcal = Math.round(choN * 4 * (dur/60));
-    res.aviso = dur > 180 ? 'Treino >3h: adicionar BCAA ou whey hidrolisado — 15–20g/h a partir da 2ª hora.' : null;
+    res.aviso = null;
   }
   if (zona >= 2 && dur > 45) {
-    res.cafeina = '3–6 mg/kg cafeína ('+Math.round(3*wt)+'–'+Math.round(6*wt)+' mg). Santa Madre Gel Cafeína, 226ERS Sub9 Gel Cafeína (ou outros) — 45–60 min antes ou a meio do treino.';
+    res.cafeina = '3–6 mg/kg cafeína ('+Math.round(3*wt)+'–'+Math.round(6*wt)+' mg). Géis energéticos cafeinados ou café — 45–60 min antes ou a meio do treino. Opta por produtos de qualidade: 226ERS, Santa Madre, Enervit, Amacx, entre outros.';
   }
   return res;
 }
