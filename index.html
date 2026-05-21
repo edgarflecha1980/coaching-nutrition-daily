@@ -438,29 +438,66 @@ function scale(items, factor) {
   });
 }
 
+// ── INTRA TREINO ──────────────────────────────────────────────────────
+function calcIntra(ifv, dur, wt) {
+  var zona = ifv < 0.75 ? 1 : ifv < 0.90 ? 2 : 3;
+  var pElet = 'Santa Madre Electrolytes, 226ERS Hydrazero, SiS Hydro (ou outros)';
+  var pHc   = 'Santa Madre Gel, 226ERS Super Gel, SiS Beta Fuel Gel (ou outros). Barras: Santa Madre Barritas, 226ERS Energy Bar (ou outros)';
+  var pMul  = 'Santa Madre Gel + Gomas Energéticas (ratio 1:0.8), 226ERS Sub9 Gel, Maurten Gel 160 (ou outros). Barras: Santa Madre Barritas, 226ERS Energy Cake (ou outros)';
+  var res   = { type:'intra' };
+
+  if (!dur || dur < 45) {
+    res.nec = 'none';
+    res.txt = 'Duração inferior a 45 min — sem nutrição intra-treino necessária. Água se o ambiente for quente.';
+    res.kcal = 0;
+  } else if (dur < 75) {
+    res.nec = 'elet'; res.cho = '0'; res.agua = 500; res.sodio = 400;
+    res.txt = 'Eletrólitos e hidratação suficientes. Sem hidratos de carbono necessários.';
+    res.prod = pElet; res.kcal = 0;
+  } else if (dur < 120) {
+    var cmin = zona===1?30:40, cmax = zona===1?45:60, choN = Math.round((cmin+cmax)/2);
+    res.nec = 'hc'; res.cho = cmin+'–'+cmax; res.choN = choN;
+    res.agua = zona===3?700:600; res.sodio = 500;
+    res.txt = 'Transportador único (glicose). Iniciar aos 20–30 min, sem esperar pela fadiga.';
+    res.prod = pHc; res.kcal = Math.round(choN * 4 * (dur/60));
+  } else {
+    var hmin = zona===1?60:75, hmax = zona===1?75:90, choN = Math.round((hmin+hmax)/2);
+    var glu = Math.round(choN/(1+0.8)), fru = choN - glu;
+    res.nec = 'multi'; res.cho = hmin+'–'+hmax; res.choN = choN;
+    res.agua = 750; res.sodio = 800;
+    res.txt = 'Rácio glicose:frutose 1:0.8 — '+glu+'g glicose + '+fru+'g frutose por hora. Iniciar aos 15–20 min e manter cadência regular.';
+    res.prod = pMul; res.kcal = Math.round(choN * 4 * (dur/60));
+    res.aviso = dur > 180 ? 'Treino >3h: adicionar BCAA ou whey hidrolisado — 15–20g/h a partir da 2ª hora.' : null;
+  }
+  if (zona >= 2 && dur > 45) {
+    res.cafeina = '3–6 mg/kg cafeína ('+Math.round(3*wt)+'–'+Math.round(6*wt)+' mg). Santa Madre Gel Cafeína, 226ERS Sub9 Gel Cafeína (ou outros) — 45–60 min antes ou a meio do treino.';
+  }
+  return res;
+}
+
 // ── BUILD PLAN ────────────────────────────────────────────────────────
-function buildPlan(tdee, mac, hora, zona, dur, trainDay, carbo, nextDay) {
+function buildPlan(tdee, mac, hora, zona, dur, trainDay, carbo, nextDay, wt, ifv) {
 
-  var spT = zona === 1 ? 'sp_z1' : zona === 2 ? 'sp_z2' : 'sp_z3';
+  var spT = zona===1?'sp_z1':zona===2?'sp_z2':'sp_z3';
 
-  // Decide jantar e snack noturno baseado no dia seguinte
+  // Snack noturno só em carboloading, volume ou prova
+  var addSn = carbo || nextDay==='volume' || nextDay==='prova';
   var jTmpl, snTmpl, tagNext = false;
-  if      (nextDay === 'prova')   { jTmpl = 'ja_prova'; snTmpl = 'sn_prova'; tagNext = true; }
-  else if (nextDay === 'volume')  { jTmpl = 'ja_vol';   snTmpl = 'sn_vol';   tagNext = true; }
-  else if (!trainDay || carbo)    { jTmpl = carbo ? 'ja_carbo' : 'ja_descanso'; snTmpl = 'sn_normal'; }
-  else                             { jTmpl = hora === 'tarde' || hora === 'noite' ? 'ja_pos' : 'ja_treino'; snTmpl = nextDay === 'normal' ? 'sn_vol' : 'sn_normal'; }
+  if      (nextDay==='prova')  { jTmpl='ja_prova'; snTmpl='sn_prova'; tagNext=true; }
+  else if (nextDay==='volume') { jTmpl='ja_vol';   snTmpl='sn_vol';   tagNext=true; }
+  else if (!trainDay||carbo)   { jTmpl=carbo?'ja_carbo':'ja_descanso'; snTmpl='sn_normal'; }
+  else                          { jTmpl=hora==='tarde'||hora==='noite'?'ja_pos':'ja_treino'; snTmpl='sn_normal'; }
 
-  // Definir slots
   var slots;
+  var snSlot = { name:'Snack noturno', time:'22h00', pct:.05, t:snTmpl, tagN:tagNext };
 
   if (!trainDay) {
     slots = [
-      { name:'Pequeno-almoço', time:'7h30',  pct:.23, t:'pa_descanso' },
+      { name:'Pequeno-almoço', time:'7h30',  pct:.25, t:'pa_descanso' },
       { name:'Snack manhã',    time:'10h30', pct:.10, t:'sn_descanso' },
-      { name:'Almoço',         time:'13h00', pct:.30, t:'al_descanso' },
+      { name:'Almoço',         time:'13h00', pct:.32, t:'al_descanso' },
       { name:'Snack tarde',    time:'16h30', pct:.10, t:'sn_descanso' },
-      { name:'Jantar',         time:'19h30', pct:.22, t:jTmpl, tagN:tagNext },
-      { name:'Snack noturno',  time:'22h00', pct:.05, t:snTmpl, tagN:tagNext }
+      { name:'Jantar',         time:'19h30', pct:.23, t:jTmpl, tagN:tagNext }
     ];
   } else if (carbo) {
     slots = [
@@ -468,80 +505,87 @@ function buildPlan(tdee, mac, hora, zona, dur, trainDay, carbo, nextDay) {
       { name:'Snack manhã',    time:'10h30', pct:.10, t:'sn_carbo' },
       { name:'Almoço',         time:'13h00', pct:.30, t:'al_carbo' },
       { name:'Snack tarde',    time:'16h30', pct:.10, t:'sn_carbo' },
-      { name:'Jantar',         time:'19h30', pct:.23, t:jTmpl, tagN:tagNext },
-      { name:'Snack noturno',  time:'22h00', pct:.05, t:snTmpl, tagN:tagNext }
+      { name:'Jantar',         time:'19h30', pct:.23, t:jTmpl, tagN:tagNext }
     ];
-  } else if (hora === 'manha') {
+  } else if (hora==='manha') {
     slots = [
       { name:'Pré-treino',     time:'5h45',  pct:.09, t:'pa_pre', tag:'pre' },
-      { name:'Pequeno-almoço', time:'9h00',  pct:.25, t:'pa_treino', tag:'pos' },
-      { name:'Snack manhã',    time:'11h00', pct:.09, t:'sn_treino' },
-      { name:'Almoço',         time:'13h30', pct:.26, t:'al_treino' },
+      { name:'Pequeno-almoço', time:'9h00',  pct:.27, t:'pa_treino', tag:'pos' },
+      { name:'Snack manhã',    time:'11h00', pct:.10, t:'sn_treino' },
+      { name:'Almoço',         time:'13h30', pct:.28, t:'al_treino' },
       { name:'Snack tarde',    time:'16h30', pct:.09, t:'sn_treino' },
-      { name:'Jantar',         time:'19h30', pct:.17, t:jTmpl, tagN:tagNext },
-      { name:'Snack noturno',  time:'22h00', pct:.05, t:snTmpl, tagN:tagNext }
+      { name:'Jantar',         time:'19h30', pct:.17, t:jTmpl, tagN:tagNext }
     ];
-  } else if (hora === 'almoco') {
+  } else if (hora==='almoco') {
     slots = [
-      { name:'Pequeno-almoço', time:'7h30',  pct:.22, t:'pa_treino' },
-      { name:'Snack pré-treino', time:'10h30', pct:.11, t:spT, tag:'pre' },
-      { name:'Almoço / Pós-treino', time:'13h30', pct:.27, t:'al_pos', tag:'pos' },
-      { name:'Snack tarde',    time:'16h30', pct:.10, t:'sn_treino' },
-      { name:'Jantar',         time:'20h00', pct:.25, t:jTmpl, tagN:tagNext },
-      { name:'Snack noturno',  time:'22h00', pct:.05, t:snTmpl, tagN:tagNext }
+      { name:'Pequeno-almoço',    time:'7h30',  pct:.23, t:'pa_treino' },
+      { name:'Snack pré-treino',  time:'10h30', pct:.12, t:spT, tag:'pre' },
+      { name:'Almoço / Pós-treino', time:'13h30', pct:.28, t:'al_pos', tag:'pos' },
+      { name:'Snack tarde',       time:'16h30', pct:.10, t:'sn_treino' },
+      { name:'Jantar',            time:'20h00', pct:.27, t:jTmpl, tagN:tagNext }
     ];
-  } else if (hora === 'tarde') {
+  } else if (hora==='tarde') {
     slots = [
-      { name:'Pequeno-almoço', time:'7h30',  pct:.22, t:'pa_treino' },
-      { name:'Snack manhã',    time:'10h30', pct:.09, t:'sn_treino' },
-      { name:'Almoço',         time:'13h00', pct:.23, t:'al_treino' },
-      { name:'Snack pré-treino', time:'15h30', pct:.11, t:spT, tag:'pre' },
-      { name:'Jantar / Pós-treino', time:'19h00', pct:.25, t:jTmpl, tag:'pos', tagN:tagNext },
-      { name:'Snack noturno',  time:'22h00', pct:.10, t:snTmpl, tagN:tagNext }
+      { name:'Pequeno-almoço',    time:'7h30',  pct:.23, t:'pa_treino' },
+      { name:'Snack manhã',       time:'10h30', pct:.10, t:'sn_treino' },
+      { name:'Almoço',            time:'13h00', pct:.25, t:'al_treino' },
+      { name:'Snack pré-treino',  time:'15h30', pct:.12, t:spT, tag:'pre' },
+      { name:'Jantar / Pós-treino', time:'19h00', pct:.30, t:jTmpl, tag:'pos', tagN:tagNext }
     ];
-  } else if (hora === 'noite') {
+  } else if (hora==='noite') {
     slots = [
-      { name:'Pequeno-almoço', time:'7h30',  pct:.22, t:'pa_treino' },
-      { name:'Snack manhã',    time:'10h30', pct:.09, t:'sn_treino' },
-      { name:'Almoço',         time:'13h00', pct:.24, t:'al_treino' },
-      { name:'Snack pré-treino', time:'17h00', pct:.11, t:spT, tag:'pre' },
-      { name:'Jantar / Pós-treino', time:'20h30', pct:.25, t:jTmpl, tag:'pos', tagN:tagNext },
-      { name:'Snack noturno',  time:'22h30', pct:.09, t:snTmpl, tagN:tagNext }
+      { name:'Pequeno-almoço',    time:'7h30',  pct:.23, t:'pa_treino' },
+      { name:'Snack manhã',       time:'10h30', pct:.10, t:'sn_treino' },
+      { name:'Almoço',            time:'13h00', pct:.25, t:'al_treino' },
+      { name:'Snack pré-treino',  time:'17h00', pct:.12, t:spT, tag:'pre' },
+      { name:'Jantar / Pós-treino', time:'20h30', pct:.30, t:jTmpl, tag:'pos', tagN:tagNext }
     ];
   } else {
     slots = [
-      { name:'Pequeno-almoço', time:'7h30',  pct:.22, t:'pa_treino' },
+      { name:'Pequeno-almoço', time:'7h30',  pct:.23, t:'pa_treino' },
       { name:'Snack manhã',    time:'10h30', pct:.10, t:'sn_treino' },
-      { name:'Almoço',         time:'13h00', pct:.26, t:'al_treino' },
-      { name:'Snack tarde',    time:'16h30', pct:.10, t:spT },
-      { name:'Jantar',         time:'20h00', pct:.27, t:jTmpl, tagN:tagNext },
-      { name:'Snack noturno',  time:'22h00', pct:.05, t:snTmpl, tagN:tagNext }
+      { name:'Almoço',         time:'13h00', pct:.28, t:'al_treino' },
+      { name:'Snack tarde',    time:'16h30', pct:.11, t:spT },
+      { name:'Jantar',         time:'20h00', pct:.28, t:jTmpl, tagN:tagNext }
     ];
   }
 
-  // Normalizar pcts para somarem 1
-  var total = slots.reduce(function(a,s){ return a + s.pct; }, 0);
-  slots.forEach(function(s){ s.pct = s.pct / total; });
+  if (addSn) slots.push(snSlot);
+
+  // Normalizar pcts
+  var total = slots.reduce(function(a,s){ return a+s.pct; }, 0);
+  slots.forEach(function(s){ s.pct = s.pct/total; });
 
   // Gerar refeições
-  return slots.map(function(s) {
+  var meals = slots.map(function(s) {
     var tmpl = T[s.t];
     if (!tmpl) return null;
     var targetK = Math.round(tdee * s.pct);
     var factor  = targetK / tmpl.refK;
     return {
-      name:  s.name,
-      time:  s.time,
-      tag:   s.tag  || null,
-      tagN:  s.tagN || false,
-      kcal:  targetK,
-      P:     Math.round(mac.P * s.pct),
-      C:     Math.round(mac.C * s.pct),
-      G:     Math.round(mac.G * s.pct),
-      A:     scale(tmpl.A, factor),
-      B:     scale(tmpl.B, factor)
+      name: s.name, time: s.time,
+      tag:  s.tag  || null, tagN: s.tagN || false,
+      kcal: targetK,
+      P: Math.round(mac.P * s.pct),
+      C: Math.round(mac.C * s.pct),
+      G: Math.round(mac.G * s.pct),
+      A: scale(tmpl.A, factor),
+      B: scale(tmpl.B, factor)
     };
   }).filter(function(m){ return m !== null; });
+
+  // Inserir intra-treino em dias de treino (após slot pré ou após 1º slot)
+  if (trainDay && !carbo && dur > 0) {
+    var intra = calcIntra(ifv, dur, wt);
+    // Determinar posição: após o slot com tag 'pre', ou após o 1º slot
+    var insertIdx = 1;
+    for (var i = 0; i < meals.length; i++) {
+      if (meals[i].tag === 'pre') { insertIdx = i + 1; break; }
+    }
+    meals.splice(insertIdx, 0, intra);
+  }
+
+  return meals;
 }
 
 // ── RENDER ────────────────────────────────────────────────────────────
@@ -599,6 +643,38 @@ function render(d) {
   var mc = document.getElementById('menu');
   mc.innerHTML = '';
   d.meals.forEach(function(meal) {
+
+    // ── INTRA CARD ────────────────────────────────────────────────
+    if (meal.type === 'intra') {
+      var iH = '<div class="card meal">';
+      iH += '<div class="mh"><div><span class="mn">Durante o Treino</span>';
+      iH += '<span class="tag" style="background:rgba(90,184,122,.18);color:var(--ok);margin-left:6px">intra-treino</span>';
+      iH += '</div>';
+      if (meal.kcal > 0) iH += '<span class="mkcal">~'+meal.kcal+' kcal</span>';
+      iH += '</div>';
+      if (meal.nec === 'none') {
+        iH += '<div class="nota">'+meal.txt+'</div>';
+      } else {
+        iH += '<div class="mpills">';
+        iH += '<span class="mp mp-c">'+(meal.choN>0?meal.cho+'g HC/h':'Sem HC')+'</span>';
+        if (meal.agua) iH += '<span class="mp mp-g">'+meal.agua+' ml água/h</span>';
+        if (meal.sodio) iH += '<span class="mp" style="background:rgba(232,164,74,.18);color:var(--warn)">'+meal.sodio+' mg Na/h</span>';
+        iH += '</div>';
+        if (meal.aviso) iH += '<div class="aviso">'+meal.aviso+'</div>';
+        iH += '<div style="font-size:13px;color:#c8dcc8;margin-bottom:12px">'+meal.txt+'</div>';
+        iH += '<div class="opt" style="background:var(--bg2);border-radius:10px;padding:10px 14px;margin-bottom:10px">';
+        iH += '<div class="ol">Produtos sugeridos</div>';
+        iH += '<div style="font-size:13px;color:var(--muted);line-height:1.6">'+meal.prod+'</div></div>';
+        if (meal.cafeina) {
+          iH += '<div class="nota" style="border-left-color:var(--warn)"><strong style="color:var(--text)">Cafeína:</strong> '+meal.cafeina+'</div>';
+        }
+      }
+      iH += '</div>';
+      mc.innerHTML += iH;
+      return;
+    }
+
+    // ── MEAL CARD ─────────────────────────────────────────────────
     var tg = '';
     if (meal.tag === 'pre') tg += '<span class="tag t-pre">pré-treino</span>';
     if (meal.tag === 'pos') tg += '<span class="tag t-pos">pós-treino</span>';
@@ -673,7 +749,7 @@ document.getElementById('gbtn').addEventListener('click', function() {
   var neat  = Math.round(tmbV * nF);
   var tdee  = Math.round(tmbV + (tK - tmbD) + neat + obj);
   var mac   = macros(tdee, wt, age, zona, tssE, carbo, trainDay);
-  var meals = buildPlan(tdee, mac, hora, zona, durV, trainDay, carbo, nextDay);
+  var meals = buildPlan(tdee, mac, hora, zona, durV, trainDay, carbo, nextDay, wt, ifvC);
 
   render({ gen, age, wt, ht, obj, tmb:tmbV, tK, neat, tdee, ifv:ifvC, zona, dur:durV, mac, meals, carbo, nextDay, trainDay });
 });
