@@ -140,7 +140,7 @@ select option{background:var(--card)}
     <div class="auth-logo">N</div>
     <div class="auth-brand">n<span>durance</span>.pt</div>
     <p class="auth-desc">Área reservada a atletas autorizados.<br>Introduz o teu email para aceder.</p>
-    <div id="clerk-sign-in"></div>
+    <p style="font-size:13px;color:#4a6650;margin-top:1rem">A redirecionar para login seguro…</p>
   </div>
   <div id="app-wrap">
 
@@ -686,21 +686,23 @@ document.getElementById('gbtn').addEventListener('click', function() {
   s.setAttribute('data-clerk-publishable-key','pk_test_bmF0dXJhbC10b3VjYW4tODMuY2xlcmsuYWNjb3VudHMuZGV2JA');
   s.onload=async function(){
     await window.Clerk.load();
-    var ap={variables:{colorPrimary:'#f07b6b',colorBackground:'#1c2a1e',colorInputBackground:'#223025',colorText:'#eef2ee',colorTextSecondary:'#7a9a82',borderRadius:'10px',fontFamily:'Inter,system-ui,sans-serif'}};
-    function showApp(){
-      document.getElementById('auth-overlay').style.display='none';
-      document.getElementById('app-wrap').style.display='block';
-      var u=window.Clerk.user;
-      if(u){var el=document.getElementById('user-email');if(el)el.textContent=u.primaryEmailAddress?u.primaryEmailAddress.emailAddress:'';}
-    }
-    if(window.Clerk.user){showApp();}
-    else{
-      window.Clerk.mountSignIn(document.getElementById('clerk-sign-in'),{appearance:ap});
-      window.Clerk.addListener(function(e){if(e.user)showApp();});
+    if(window.Clerk.user){
+      showApp();
+    }else{
+      window.Clerk.redirectToSignIn({afterSignInUrl:window.location.href});
     }
   };
   document.head.appendChild(s);
 })();
+function showApp(){
+  document.getElementById('auth-overlay').style.display='none';
+  document.getElementById('app-wrap').style.display='block';
+  var u=window.Clerk.user;
+  if(u){
+    var el=document.getElementById('user-email');
+    if(el)el.textContent=u.primaryEmailAddress?u.primaryEmailAddress.emailAddress:'';
+  }
+}
 function clerkSignOut(){window.Clerk.signOut().then(function(){location.reload();});}
 </script>
   </div><!-- /app-wrap -->
